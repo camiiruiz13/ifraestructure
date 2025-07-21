@@ -1,0 +1,63 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Crear instancia RDS PostgreSQL con Security Group incluido
+
+Parameters:
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: ID del VPC donde se ubicará la DB
+  Subnet1:
+    Type: AWS::EC2::Subnet::Id
+    Description: Subnet 1 (zona 1)
+  Subnet2:
+    Type: AWS::EC2::Subnet::Id
+    Description: Subnet 2 (zona 2 distinta)
+
+Resources:
+
+  RdsSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Permite acceso al RDS PostgreSQL (puerto 5432)
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: rds-postgres-sg
+
+  RdsSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Subnets para RDS PostgreSQL
+      SubnetIds:
+        - !Ref Subnet1
+        - !Ref Subnet2
+      Tags:
+        - Key: Name
+          Value: rds-subnet-group
+
+  PostgresDatabase:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBInstanceIdentifier: reto-aws-postgres
+      AllocatedStorage: 20
+      DBInstanceClass: db.t3.micro
+      Engine: postgres
+      MasterUsername: camidev
+      MasterUserPassword: Admin123!
+      DBName: retoawspostgres 
+      VPCSecurityGroups:
+        - !Ref RdsSecurityGroup
+      DBSubnetGroupName: !Ref RdsSubnetGroup
+      PubliclyAccessible: true
+      BackupRetentionPeriod: 7
+      DeletionProtection: false
+      MultiAZ: false
+
+Outputs:
+  RdsEndpoint:
+    Description: Endpoint de conexión a PostgreSQL
+    Value: !GetAtt PostgresDatabase.Endpoint.Address
