@@ -35,3 +35,12 @@ override.tf.json
 # Ignore CLI configuration files
 .terraformrc
 terraform.rc
+
+# Archivos TXT generados
+*.txt
+
+# Archivos y carpetas de IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+out/
