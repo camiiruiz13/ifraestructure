@@ -1,0 +1,79 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Configuración de API Gateway para exponer endpoints de la API Java desplegada en ECS vía ALB
+
+Parameters:
+  AlbDNS:
+    Type: String
+    Description: DNS del Application Load Balancer
+
+Resources:
+
+  HttpApi:
+    Type: AWS::ApiGatewayV2::Api
+    Properties:
+      Name: reto-api-gateway
+      ProtocolType: HTTP
+      CorsConfiguration:
+        AllowMethods: [GET, POST]
+        AllowOrigins: ["*"]
+        AllowHeaders: ["*"]
+
+  IntegrationPostUser:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref HttpApi
+      IntegrationType: HTTP_PROXY
+      IntegrationMethod: POST
+      IntegrationUri: !Sub "http://${AlbDNS}/users"
+      PayloadFormatVersion: "1.0"
+
+  IntegrationGetUser:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref HttpApi
+      IntegrationType: HTTP_PROXY
+      IntegrationMethod: GET
+      IntegrationUri: !Sub "http://${AlbDNS}/users/$request.path.identifier"
+      PayloadFormatVersion: "1.0"
+
+  IntegrationHealth:
+    Type: AWS::ApiGatewayV2::Integration
+    Properties:
+      ApiId: !Ref HttpApi
+      IntegrationType: HTTP_PROXY
+      IntegrationMethod: GET
+      IntegrationUri: !Sub "http://${AlbDNS}/actuator/health"
+      PayloadFormatVersion: "1.0"
+
+  RoutePostUser:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: "POST /users"
+      Target: !Join [ "/", [ "integrations", !Ref IntegrationPostUser ] ]
+
+  RouteGetUser:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: "GET /users/{identifier}"
+      Target: !Join [ "/", [ "integrations", !Ref IntegrationGetUser ] ]
+
+  RouteHealth:
+    Type: AWS::ApiGatewayV2::Route
+    Properties:
+      ApiId: !Ref HttpApi
+      RouteKey: "GET /health"
+      Target: !Join [ "/", [ "integrations", !Ref IntegrationHealth ] ]
+
+  Stage:
+    Type: AWS::ApiGatewayV2::Stage
+    Properties:
+      ApiId: !Ref HttpApi
+      StageName: prod
+      AutoDeploy: true
+
+Outputs:
+  ApiGatewayInvokeURL:
+    Description: URL base para invocar la API Gateway
+    Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com/prod"
